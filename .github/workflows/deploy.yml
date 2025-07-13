@@ -20,11 +20,11 @@ jobs:
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
         distribution: 'temurin'
+        java-version: '17'
 
     - name: Cache Gradle packages
-      uses: actions/cache@v4
+      uses: actions/cache@v3
       with:
         path: |
           ~/.gradle/caches
@@ -34,7 +34,20 @@ jobs:
           ${{ runner.os }}-gradle-
 
     - name: Build with Gradle
-      run: ./gradlew build -x test
+      run: ./gradlew build
+
+    - name: Setup SSH key
+      if: github.ref == 'refs/heads/main'
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/docker-key
+        chmod 600 ~/.ssh/docker-key
+        ssh-keyscan -H ${{ secrets.EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
+
+    - name: Add public key to EC2
+      if: github.ref == 'refs/heads/main'
+      run: |
+        ssh -i ~/.ssh/docker-key ec2-user@${{ secrets.EC2_PUBLIC_IP }} "echo '${{ secrets.EC2_PUBLIC_KEY }}' >> ~/.ssh/authorized_keys"
 
     - name: Deploy to EC2
       if: github.ref == 'refs/heads/main'
@@ -55,66 +68,6 @@ jobs:
           git clone https://github.com/Seungkiii/DongYang-Backend.git
           cd DongYang-Backend
           
-          # application.yml 파일 수정
-          cat > src/main/resources/application.yml << 'YAMLEOF'
-          spring:
-            application:
-              name: dongyang-chatbot
-            
-            # MySQL Database 설정
-            datasource:
-              url: jdbc:mysql://${{ secrets.MYSQL_HOST }}:3306/${{ secrets.MYSQL_DB }}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
-              driver-class-name: com.mysql.cj.jdbc.Driver
-              username: ${{ secrets.MYSQL_USER }}
-              password: ${{ secrets.MYSQL_PASSWORD }}
-            
-            # JPA 설정
-            jpa:
-              database-platform: org.hibernate.dialect.MySQLDialect
-              hibernate:
-                ddl-auto: update
-              show-sql: false
-              properties:
-                hibernate:
-                  format_sql: true
-
-          # AI 서버 설정
-          ai:
-            server:
-              url: ${{ secrets.AI_SERVER_URL }}
-              timeout:
-                connect: 10000  # 10초
-                read: 30000     # 30초
-
-          # Swagger UI 설정
-          springdoc:
-            swagger-ui:
-              path: /swagger-ui.html
-              operations-sorter: method
-              tags-sorter: alpha
-              try-it-out-enabled: true
-            api-docs:
-              path: /api-docs
-              groups:
-                enabled: true
-
-          # 서버 설정
-          server:
-            port: 8080
-            error:
-              include-stacktrace: never
-              include-message: always
-
-          # 로깅 설정
-          logging:
-            level:
-              com.dongyang: DEBUG
-              org.springframework.web.client: DEBUG
-            pattern:
-              console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-              file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-          YAMLEOF
-          
           # 상위 디렉토리로 이동하여 docker-compose 실행
           cd ..
           
@@ -124,23 +77,6 @@ jobs:
           version: '3.8'
 
           services:
-            # MySQL Database
-            mysql:
-              image: mysql:8.0
-              container_name: dongyang-mysql
-              restart: unless-stopped
-              environment:
-                MYSQL_ROOT_PASSWORD: dongyang123
-                MYSQL_DATABASE: ${{ secrets.MYSQL_DB }}
-                MYSQL_USER: ${{ secrets.MYSQL_USER }}
-                MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-              ports:
-                - "3306:3306"
-              volumes:
-                - mysql_data:/var/lib/mysql
-              networks:
-                - dongyang-network
-
             # Backend Service
             backend:
               build:
@@ -148,22 +84,10 @@ jobs:
                 dockerfile: Dockerfile
               container_name: dongyang-backend
               restart: unless-stopped
-              environment:
-                SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${{ secrets.MYSQL_DB }}?useSSL=false&allowPublicKeyRetrieval=true
-                SPRING_DATASOURCE_USERNAME: ${{ secrets.MYSQL_USER }}
-                SPRING_DATASOURCE_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
-                SPRING_JPA_HIBERNATE_DDL_AUTO: update
-                SPRING_JPA_SHOW_SQL: false
-                AI_SERVER_URL: ${{ secrets.AI_SERVER_URL }}
               ports:
                 - "8080:8080"
-              depends_on:
-                - mysql
               networks:
                 - dongyang-network
-
-          volumes:
-            mysql_data:
 
           networks:
             dongyang-network:
