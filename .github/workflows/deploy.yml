@@ -87,5 +87,4 @@ jobs:
           
           # 로그 확인
           echo "=== Backend Service 로그 ==="
-          docker-compose logs --tail=10 backend 
-          
+          docker-compose logs --tail=10 backend
