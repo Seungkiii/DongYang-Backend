@@ -12,7 +12,7 @@ import java.util.Map;
 public class ChatProxyController {
     private final RestTemplate restTemplate;
 
-    @Value("${ai.server.url:http://localhost:8000/api/chat/question}")
+    @Value("${AI_SERVICE_URL:http://ai:8000}")
     private String aiServerUrl;
 
     public ChatProxyController(RestTemplate simpleRestTemplate) {
@@ -25,7 +25,8 @@ public class ChatProxyController {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl, entity, String.class);
+            String fullUrl = aiServerUrl + "/api/chat/question";
+            ResponseEntity<String> response = restTemplate.postForEntity(fullUrl, entity, String.class);
             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());
         } catch (Exception e) {
             // 로그 출력 및 상세 오류 메시지 반환

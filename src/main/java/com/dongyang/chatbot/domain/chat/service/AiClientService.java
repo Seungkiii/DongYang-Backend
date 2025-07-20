@@ -24,7 +24,7 @@ public class AiClientService {
     @Qualifier("simpleRestTemplate")
     private final RestTemplate restTemplate;
     
-    @Value("${ai.server.url:http://localhost:8000}")
+    @Value("${AI_SERVICE_URL:http://ai:8000}")
     private String aiServerUrl;
     
     public ChatResponse sendQuestionToAi(ChatRequest request) {
