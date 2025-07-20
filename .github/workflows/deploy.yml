@@ -84,22 +84,6 @@ jobs:
           
           # Clean up unused images
           docker image prune -f
-              restart: unless-stopped
-              ports:
-                - "8080:8080"
-              networks:
-                - dongyang-network
-
-          networks:
-            dongyang-network:
-              driver: bridge
-          COMPOSEEOF
-          fi
-          
-          # Backend 서비스 재시작
-          docker-compose down backend || true
-          docker-compose build backend
-          docker-compose up -d backend
           
           # 로그 확인
           echo "=== Backend Service 로그 ==="
