@@ -18,7 +18,7 @@ COPY src src
 RUN gradle build -x test --no-daemon
 
 # Runtime stage
-FROM openjdk:17-jre-slim
+FROM openjdk:17-jdk-slim
 
 WORKDIR /app
 

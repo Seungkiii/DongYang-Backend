@@ -1,17 +1,21 @@
-name: Deploy to EC2
+name: Deploy Backend to EC2
 
 on:
   push:
     branches: 
       - main
-  pull_request:
-    branches: 
-      - main
   workflow_dispatch:
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     steps:
     - name: Checkout code
@@ -36,48 +40,50 @@ jobs:
     - name: Build with Gradle (skip tests)
       run: ./gradlew build -x test
 
-    - name: Setup SSH key
-      if: github.ref == 'refs/heads/main'
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/docker-key
-        chmod 600 ~/.ssh/docker-key
-        ssh-keyscan -H ${{ secrets.EC2_PUBLIC_IP }} >> ~/.ssh/known_hosts
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
 
     - name: Deploy to EC2
-      if: github.ref == 'refs/heads/main'
-      uses: appleboy/ssh-action@master
+      uses: appleboy/ssh-action@v0.1.7
       with:
-        host: ${{ secrets.EC2_PUBLIC_IP }}
+        host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # 디렉토리 생성
-          mkdir -p ${{ secrets.DEPLOY_PATH }}
-          cd ${{ secrets.DEPLOY_PATH }}
+          # Navigate to deployment directory
+          cd /home/ubuntu/dongyang-chatbot
           
-          # 기존 프로젝트 삭제 (있다면)
-          rm -rf DongYang-Backend
+          # Login to GitHub Container Registry
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          # 프로젝트 클론
-          git clone https://github.com/Seungkiii/DongYang-Backend.git
-          cd DongYang-Backend
+          # Pull latest images and restart services
+          docker-compose pull backend
+          docker-compose up -d backend
           
-          # 상위 디렉토리로 이동하여 docker-compose 실행
-          cd ..
-          
-          # Docker Compose 파일이 없다면 생성
-          if [ ! -f docker-compose.yml ]; then
-            cat > docker-compose.yml << 'COMPOSEEOF'
-          version: '3.8'
-
-          services:
-            # Backend Service
-            backend:
-              build:
-                context: ./DongYang-Backend
-                dockerfile: Dockerfile
-              container_name: dongyang-backend
+          # Clean up unused images
+          docker image prune -f
               restart: unless-stopped
               ports:
                 - "8080:8080"

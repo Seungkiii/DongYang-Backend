@@ -34,10 +34,16 @@ public class AiClientService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
-            HttpEntity<ChatRequest> entity = new HttpEntity<>(request, headers);
+            // AI 서비스에 맞는 요청 형식으로 변환
+            java.util.Map<String, Object> aiRequest = new java.util.HashMap<>();
+            aiRequest.put("question", request.getQuestion());
+            aiRequest.put("context_count", request.getContextCount() != null ? request.getContextCount() : 5);
+            
+            HttpEntity<java.util.Map<String, Object>> entity = new HttpEntity<>(aiRequest, headers);
             
             log.info("AI 서버로 요청 전송: {}", url);
-            log.debug("요청 데이터: {}", request.getQuestion());
+            log.info("요청 데이터: {}", aiRequest);
+            log.info("AI 서버 URL: {}", aiServerUrl);
             
             ResponseEntity<ChatResponse> response = restTemplate.postForEntity(
                 url, entity, ChatResponse.class
@@ -53,7 +59,7 @@ public class AiClientService {
             }
             
         } catch (RestClientException e) {
-            log.error("AI 서버 통신 오류: {}", e.getMessage());
+            log.error("AI 서버 통신 오류: {}", e.getMessage(), e);
             return createErrorResponse("AI 서버가 실행되지 않았거나 연결할 수 없습니다. AI 서버를 시작해주세요.");
         } catch (Exception e) {
             log.error("예상치 못한 오류: {}", e.getMessage(), e);

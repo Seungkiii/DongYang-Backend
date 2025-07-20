@@ -16,7 +16,10 @@ public class ChatResponse {
     private Double confidence;
     
     @JsonProperty("processing_time")
-    private Long processingTime;
+    private Integer processingTime;
+    
+    private String intent;
+    private java.util.Map<String, Object> parameters;
     
     public ChatResponse(String answer) {
         this.answer = answer;
