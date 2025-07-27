@@ -12,12 +12,12 @@
 
 ## 기술 스택
 - **Java 17**
-- **Spring Boot 3.x**
+- **Spring Boot 3.5.3
 - **Spring Web** (REST API)
 - **Spring Data JPA** (데이터베이스 연동)
-- **PostgreSQL** (데이터베이스)
+- **MySQL** (데이터베이스)
 - **Docker** (컨테이너화)
-- **Maven** (빌드 도구)
+- **Gradle** (빌드 도구)
 
 ## API 명세
 
@@ -72,7 +72,7 @@ GET /api/health
 AI_SERVER_URL=http://ai:8000
 
 # 데이터베이스
-SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/chatbot
+SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/dongyang_chatbot
 SPRING_DATASOURCE_USERNAME=chatbot_user
 SPRING_DATASOURCE_PASSWORD=secure_password
 
@@ -85,7 +85,7 @@ SPRING_JPA_SHOW_SQL=false
 
 ### 1. 사전 요구사항
 - Java 17+
-- Maven 3.6+
+- Gradle
 - Docker (선택사항)
 
 ### 2. 프로젝트 실행
@@ -303,11 +303,11 @@ logging:
 
 2. **데이터베이스 연결 실패**
    ```bash
-   # PostgreSQL 컨테이너 상태 확인
-   docker-compose ps postgres
+   # MySQL 컨테이너 상태 확인
+   docker-compose ps mysql
    
    # 데이터베이스 연결 테스트
-   docker-compose exec postgres psql -U chatbot_user -d chatbot
+   docker-compose exec mysql mysql -U chatbot_user -d chatbot
    ```
 
 3. **메모리 부족**
